@@ -90,7 +90,7 @@ export async function toInterface(
     methods.push(methodItem);
   }
 
-  intepretHandle.sourceFile.addImport({
+  intepretHandle.sourceFile.addImportDeclaration({
     moduleSpecifier: 'interpret-util',
     defaultImport: `{${extraImport.join(',')}}`,
   });

@@ -88,14 +88,14 @@ export async function jType2Ts(
     let enumClassPath =typePropers.typeArgs[0].type.name;
     return classPath2TypeName(enumClassPath, typeOptions)
   } else if (
-    typePropers.name === 'java.util.Map' &&
+    /java.util.(Hash)?Map/.test(typePropers.name)  &&
     typePropers.typeArgs.length === 0
   ) {
     return 'any';//直接返回any
   } else if (typePropers.typeArgs && typePropers.typeArgs.length > 0) {
     //泛型处理
     let type = await classPath2TypeName(typePropers.name, typeOptions);
-    if (typePropers.name === 'java.util.Map') {
+    if (/java.util.(Hash)?Map/.test(typePropers.name)) {
       let nameType = 'any';
       if (typePropers.typeArgs[0]) {
         if (!typePropers.typeArgs[0].isWildcard) {

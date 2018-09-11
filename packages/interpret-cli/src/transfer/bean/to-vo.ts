@@ -46,7 +46,7 @@ export async function toBeanClass(
 
   if (typeDef.typeParams) {
     typeDef.typeParams.forEach(typeParamsItem => {
-      typeParameters.push({name: typeParamsItem.name+"=any",});
+      typeParameters.push({name: typeParamsItem.name + '=any'});
     });
   }
   //获取 方法定义; 或者获取属性定义
@@ -63,20 +63,20 @@ export async function toBeanClass(
       filedType = typeDef.fields[fieldName].elementType.name;
     }
 
-      let field = await toField(
-        fieldName,
-        typeDef.fields[fieldName],
-        intepretHandle,
-      );
-      properties.push(field);
-      ctorParams.push({name: field.name, type: field.type});
+    let field = await toField(
+      fieldName,
+      typeDef.fields[fieldName],
+      intepretHandle,
+    );
+    properties.push(field);
+    ctorParams.push({name: field.name, type: field.type});
 
-      let filedItem = typeDef.fields[fieldName];
-      fileds.push({
-        name: fieldName,
-        type: await jType2Ts(filedItem, intepretHandle),
-        filedAst: filedItem,
-      });
+    let filedItem = typeDef.fields[fieldName];
+    fileds.push({
+      name: fieldName,
+      type: await jType2Ts(filedItem, intepretHandle),
+      filedAst: filedItem,
+    });
   }
   //添加构造函数入参interface
   //1.2 生成方法;;
@@ -109,15 +109,16 @@ export async function toBeanClass(
     .join('\n');
 
   return {
-    name: typeName,
-    ctor: {
-      parameters: [
-        {
-          name: `params:${getCtorParaStr(typeName, typeParameters)}`,
-        },
-      ],
-      bodyText: ctorBody,
-    },
+    ctors: [
+      {
+        parameters: [
+          {
+            name: `params:${getCtorParaStr(typeName, typeParameters)}`,
+          },
+        ],
+        bodyText: ctorBody,
+      },
+    ],
     typeParameters,
     properties,
     isExported: true,
