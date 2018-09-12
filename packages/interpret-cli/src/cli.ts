@@ -25,10 +25,10 @@ import prettier from 'prettier';
 import {Request} from './request';
 import {readFile, writeFile} from 'fs-extra';
 
+const packageInfo = require("../package.json");
 const log = debug('j2t:cli');
-
 program
-  .version('0.0.1')
+  .version(packageInfo.version)
   .usage('-c dubbo.json')
   .option('-c, --config [value]', 'specify interpret Config ')
   .parse(process.argv);
@@ -58,6 +58,7 @@ program
   log(`parse config->${JSON.stringify(dubboConfig, null, 2)}`);
   await new Request(dubboConfig).work();
   await formatSourceDir(dubboConfig.output);
+  // todo: 生成 npm package
   console.log('Translation completed');
 })();
 

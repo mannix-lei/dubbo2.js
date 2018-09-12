@@ -109,6 +109,7 @@ export async function toBeanClass(
     .join('\n');
 
   return {
+    name:typeName,
     ctors: [
       {
         parameters: [
