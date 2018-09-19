@@ -211,6 +211,8 @@ export class ZkRegistry implements IObservable<IRegistrySubscriber> {
 
     if (err) {
       log(`getChildren ${dubboServicePath} error ${err}`);
+      //@ts-ignore
+      err.path = dubboServicePath;
       traceErr(err);
       return [];
     }

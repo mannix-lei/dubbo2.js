@@ -21,5 +21,6 @@ import DirectlyDubbo from './directly-dubbo';
 import Dubbo from './dubbo';
 import {go} from './go';
 import {TDubboCallResult} from './types';
+import RpcError from "./RpcError";
 
-export {Dubbo, DirectlyDubbo, java, TDubboCallResult, Context, go};
+export {Dubbo, DirectlyDubbo, java, TDubboCallResult, Context, go,RpcError};

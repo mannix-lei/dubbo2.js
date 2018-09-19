@@ -15,23 +15,16 @@
  * limitations under the License.
  */
 
-import debug from 'debug';
-import compose from 'koa-compose';
-import config from './config';
-import Context from './context';
-import {go} from './go';
-import Queue from './queue';
-import Scheduler from './scheduler';
-import {
-  IDubboProps,
-  IDubboProvider,
-  IDubboSubscriber,
-  IObservable,
-  ITrace,
-  Middleware,
-  TDubboService,
-} from './types';
-import {msg, noop, traceInfo} from './util';
+import debug from "debug";
+import compose from "koa-compose";
+import config from "./config";
+import Context from "./context";
+import { go } from "./go";
+import Queue from "./queue";
+import RpcError from "./RpcError";
+import Scheduler from "./scheduler";
+import { IDubboProps, IDubboProvider, IDubboSubscriber, IObservable, ITrace, Middleware, TDubboService } from "./types";
+import { msg, noop, traceInfo } from "./util";
 
 const version = require('../package.json').version;
 
@@ -177,6 +170,10 @@ export default class Dubbo<TService = Object>
           await fn(ctx);
         } catch (err) {
           log(err);
+        }
+
+        if(ctx.body.err){
+          throw new RpcError(ctx.body.err,...args);
         }
 
         return ctx.body;
