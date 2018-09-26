@@ -154,6 +154,7 @@ export class ZkRegistry implements IObservable<IRegistrySubscriber> {
           host: host,
           port: port,
           name: name,
+          zkRoot,
           dubboInterface: inf,
           dubboVersion: dubboVersion,
           version: version,
@@ -324,6 +325,7 @@ export class ZkRegistry implements IObservable<IRegistrySubscriber> {
           host: host,
           port: port,
           name: this._props.application.name,
+          zkRoot:this._props.zkRoot,
           dubboInterface: dubboInterface,
           dubboVersion: dubboVersion,
           version: version,
@@ -384,11 +386,12 @@ export class ZkRegistry implements IObservable<IRegistrySubscriber> {
     host: string;
     port: number;
     name: string;
+    zkRoot:string;
     dubboInterface: string;
     dubboVersion: string;
     version: string;
   }) {
-    let {host, port, name, dubboInterface, dubboVersion, version} = params;
+    let {host, port, name, dubboInterface, dubboVersion, version,zkRoot} = params;
     const queryParams = {
       host,
       port,
@@ -403,7 +406,7 @@ export class ZkRegistry implements IObservable<IRegistrySubscriber> {
       check: 'false',
     };
 
-    const consumerRoot = `/dubbo/${dubboInterface}/consumers`;
+    const consumerRoot = `/${zkRoot}/${dubboInterface}/consumers`;
     const err = await this._createRootConsumer(consumerRoot);
     if (err) {
       log('create root consumer %o', err);

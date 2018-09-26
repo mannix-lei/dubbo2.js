@@ -240,7 +240,7 @@ export default class Queue implements IObservable<TQueueObserver> {
       this.failed(
         requestId,
         new DubboTimeoutError(
-          `err:${dubboInterface}#${methodName} remote invoke timeout`,
+          `err:${dubboInterface}#${methodName} remote invoke timeout, host: ${ctx.invokeHost}:${ctx.invokePort}`,
         ),
       );
     }, timeout);
