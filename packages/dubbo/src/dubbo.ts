@@ -173,7 +173,7 @@ export default class Dubbo<TService = Object>
         }
 
         if(ctx.body.err){
-          throw new RpcError(ctx.body.err,...args);
+          throw new RpcError(ctx.body.err,ctx.methodArgs);
         }
 
         return ctx.body;
