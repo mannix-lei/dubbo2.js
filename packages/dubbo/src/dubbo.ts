@@ -94,6 +94,7 @@ export default class Dubbo<TService = Object>
         register: props.register,
         application: props.application,
         interfaces: this._interfaces,
+        ignoreIpReg:props.ignoreIpReg,
       },
       this._queue,
     );
