@@ -77,7 +77,7 @@ export interface IDubboProps {
   //当前要注册到dubbo容器的服务对象
   service: Object;
   //忽略 provider 的 ip 规则
-  ignoreIpReg:Array<RegExp>
+  ignoreIpReg?: Array<RegExp>;
 }
 
 //magic, you should use typescript 2.8+

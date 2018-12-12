@@ -4,12 +4,26 @@
   "main": "./es7/index.js",
   "types": "./es7/typings/index.d.ts",
   "license": "Apache Licence 2.0",
+  "author": {
+    "name": "qf-fe",
+    "email": "fe-dev@58qf.com"
+  },
+  "maintainers": [
+    {
+      "name": "zhangchuang",
+      "email": "zhangchuang@58qf"
+    },
+    {
+      "name": "xuhang",
+      "email": "xuhang@58qf"
+    }
+  ],
   "engines": {
     "node": ">=6.0.0"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/dubbo/dubbo2.js.git"
+    "url": "https://github.com/QiFuFE/dubbo2.js.git"
   },
   "dependencies": {
     "debug": "3.1.0",
