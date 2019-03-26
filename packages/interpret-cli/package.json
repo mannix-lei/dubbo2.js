@@ -1,5 +1,5 @@
 {
-  "name": "@58qf/interpret-dubbo2js",
+  "name": "@58qf/interpret-cli",
   "version": "0.0.23",
   "description": "interpret java-jar file to typescript files",
   "bin": {
@@ -24,6 +24,7 @@
     "fs-extra": "^4.0.2",
     "klaw": "^2.1.1",
     "prettier": "^1.10.2",
-    "ts-simple-ast": "14.4.3"
+    "ts-simple-ast": "14.4.3",
+    "xml2json": "0.11.2"
   }
 }

@@ -15,24 +15,16 @@
  * limitations under the License.
  */
 
-import debug from 'debug';
-import compose from 'koa-compose';
-import config from './config';
-import Context from './context';
-import {go} from './go';
-import Queue from './queue';
-import Scheduler from './scheduler';
-import {
-  IDubboProps,
-  IDubboProvider,
-  IDubboSubscriber,
-  IObservable,
-  ITrace,
-  Middleware,
-  TDubboService,
-} from './types';
-import {msg, noop, traceErr, traceInfo} from './util';
+import debug from "debug";
+import compose from "koa-compose";
+import config from "./config";
+import Context from "./context";
+import { go } from "./go";
+import Queue from "./queue";
 import RpcError from "./RpcError";
+import Scheduler from "./scheduler";
+import { IDubboProps, IDubboProvider, IDubboSubscriber, IObservable, ITrace, Middleware, TDubboService } from "./types";
+import { msg, noop, traceInfo } from "./util";
 
 const log = debug('dubbo:bootstrap');
 const packageVersion = require('../package.json').version;

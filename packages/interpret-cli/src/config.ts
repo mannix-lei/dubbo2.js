@@ -14,24 +14,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {to} from './to';
-import {readJson} from 'fs-extra';
-import {isAbsolute, join} from 'path';
-import {IConfig} from './typings';
+import { readJson } from "fs-extra";
+import { isAbsolute, join } from "path";
+import { to } from "./to";
+import { IConfig } from "./typings";
 
 export default class Config {
-  static fromConfigPath(
-    configPath: string,
-  ): Promise<{err: Error; res: IConfig}> {
-    return to<IConfig>(
+  static async fromConfigPath(
+    configPath: string
+  ): Promise<IConfig> {
+
+    if (!configPath) {
+      const mainPakcageInfo = require(`${process.cwd()}/package.json`);
+      if (mainPakcageInfo.dubboConfig) {
+        return mainPakcageInfo.dubboConfig;
+      } else {
+        throw new Error('At least provide the "dubbo.json" or DubboConfig field in package.json');
+      }
+    }
+
+    let { err, res } = await to<IConfig>(
       readJson(configPath).then(config => {
         // Relative path to absolute path
         config.output = Config.getAbsolutePath(config.output);
         config.entryJarPath = Config.getAbsolutePath(config.entryJarPath);
         config.libDirPath = Config.getAbsolutePath(config.libDirPath);
         return config;
-      }),
+      })
     );
+
+    if(err){
+      throw new Error("Error reading configuration file");
+    }
+
+    return res;
   }
 
   static getAbsolutePath(filePath: string) {

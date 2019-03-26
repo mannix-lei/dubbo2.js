@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {Setting} from './setting';
+import { Setting } from "./setting";
 
 export interface IObservable<T> {
   subscribe(subscriber: T);
@@ -57,7 +57,7 @@ export interface IDirectlyDubboProps {
 
 export interface IInvokeParam {
   dubboInterface: string;
-  methods: {[methodName: string]: Function};
+  methods: { [methodName: string]: Function };
   group?: string;
   version?: string;
   timeout?: number;
@@ -65,7 +65,7 @@ export interface IInvokeParam {
 
 export interface IDubboProps {
   //当前的应用标识
-  application: {name: string};
+  application: { name: string };
   //zookeeper注册中心地址
   register: string;
   isSupportedDubbox?: boolean;
@@ -97,11 +97,11 @@ export interface IDubboProvider {
   version?: string;
   timeout?: number;
   group?: string;
-  methods: {[methodName: string]: Function};
+  methods: { [methodName: string]: Function };
 }
 
 export interface IZkClientProps {
-  application?: {name: string};
+  application?: { name: string };
   zkRoot?: string;
   register: string;
   interfaces: Array<string>;
@@ -117,6 +117,7 @@ export interface IProviderProps {
   group: string;
   timeout: number;
 }
+
 export type TRequestId = number;
 
 export interface IDubboResponse<T> {
@@ -163,4 +164,5 @@ export interface ICreateConsumerParam {
   name: string;
   dubboInterface: string;
   dubboVersion: string;
+  zkRoot: string;
 }

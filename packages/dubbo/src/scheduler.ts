@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-import debug from 'debug';
-import DubboAgent from './dubbo-agent';
-import {ScheduleError, SocketError, ZookeeperTimeoutError} from './err';
-import Queue from './queue';
-import {IDubboResponse, IZkClientProps} from './types';
-import {traceErr, traceInfo} from './util';
-import {ZkRegistry} from './zookeeper';
+import debug from "debug";
+import DubboAgent from "./dubbo-agent";
+import { ScheduleError, SocketError, ZookeeperTimeoutError } from "./err";
+import Queue from "./queue";
+import { IDubboResponse, IZkClientProps } from "./types";
+import { traceErr, traceInfo } from "./util";
+import { ZkRegistry } from "./zookeeper";
 
 const log = debug('dubbo:scheduler');
 const enum STATUS {
@@ -63,6 +63,7 @@ export default class Scheduler {
   /**
    * static factory method
    * @param props
+   * @param queue
    */
   static from(props: IZkClientProps, queue: Queue) {
     return new Scheduler(props, queue);
@@ -145,8 +146,7 @@ export default class Scheduler {
 
   /**
    * 发起dubbo调用
-   * @param ctx
-   * @param agentHostList
+   * @param requestId
    */
   private _handleDubboInvoke(requestId: number) {
     //get request context

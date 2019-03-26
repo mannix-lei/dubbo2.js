@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-import debug from 'debug';
-import SocketWorker from './socket-worker';
-import {IObservable, ISocketSubscriber} from './types';
-import {isDevEnv, noop, traceErr, traceInfo} from './util';
-import {TAgentAddr} from './zookeeper';
+import debug from "debug";
+import SocketWorker from "./socket-worker";
+import { IObservable, ISocketSubscriber } from "./types";
+import { isDevEnv, noop, traceErr, traceInfo } from "./util";
+import { TAgentAddr } from "./zookeeper";
 
 const log = debug('dubbo:server-agent');
 
@@ -42,7 +42,7 @@ export default class DubboAgent implements IObservable<ISocketSubscriber> {
 
   /**
    * static factor method
-   * @param agentAddrList 负载地址列表
+   * @param agentAddrs 负载地址列表
    */
   from = (agentAddrs: Set<string>) => {
     log('create server-agent :|> %O', agentAddrs);
