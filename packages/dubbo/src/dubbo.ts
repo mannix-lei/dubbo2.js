@@ -15,21 +15,28 @@
  * limitations under the License.
  */
 
-import debug from "debug";
-import compose from "koa-compose";
-import config from "./config";
-import Context from "./context";
-import { go } from "./go";
-import Queue from "./queue";
+import debug from 'debug';
+import compose from 'koa-compose';
+import config from './config';
+import Context from './context';
+import {go} from './go';
+import Queue from './queue';
+import Scheduler from './scheduler';
+import {
+  IDubboProps,
+  IDubboProvider,
+  IDubboSubscriber,
+  IObservable,
+  ITrace,
+  Middleware,
+  TDubboService,
+} from './types';
+import {msg, noop, traceErr, traceInfo} from './util';
 import RpcError from "./RpcError";
-import Scheduler from "./scheduler";
-import { IDubboProps, IDubboProvider, IDubboSubscriber, IObservable, ITrace, Middleware, TDubboService } from "./types";
-import { msg, noop, traceInfo } from "./util";
-
-const version = require('../package.json').version;
 
 const log = debug('dubbo:bootstrap');
-log('dubbo2.js version :=> %s', version);
+const packageVersion = require('../package.json').version;
+log('dubbo2.js version :=> %s', packageVersion);
 
 //定位没有处理的promise
 // process.on('unhandledRejection', (reason, p) => {
@@ -59,6 +66,11 @@ export default class Dubbo<TService = Object>
   implements IObservable<IDubboSubscriber> {
   constructor(props: IDubboProps) {
     this._props = props;
+
+    if (!props.dubboSetting) {
+      throw new Error('Please specify dubboSetting');
+    }
+
     this._interfaces = [];
     this._middleware = [];
     this._service = <TDubboService<TService>>{};
@@ -94,7 +106,7 @@ export default class Dubbo<TService = Object>
         register: props.register,
         application: props.application,
         interfaces: this._interfaces,
-        ignoreIpReg:props.ignoreIpReg,
+        dubboSetting: props.dubboSetting,
       },
       this._queue,
     );
@@ -128,12 +140,19 @@ export default class Dubbo<TService = Object>
    * 代理dubbo的服务
    */
   proxyService = <T>(provider: IDubboProvider): T => {
-    const {application, isSupportedDubbox} = this._props;
-    const {dubboInterface, methods, version, timeout, group} = provider;
+    const {application, isSupportedDubbox, dubboSetting} = this._props;
+    const {dubboInterface, methods, timeout} = provider;
     const proxyObj = Object.create(null);
 
     //collect interface
     this._interfaces.push(dubboInterface);
+    //get interface setting such as group, version
+    const setting = dubboSetting.getDubboSetting(dubboInterface);
+    if (!setting) {
+      throw new Error(
+        `Could not find any group or version for ${dubboInterface}, Please specify dubboSetting`,
+      );
+    }
 
     //proxy methods
     Object.keys(methods).forEach(name => {
@@ -149,9 +168,9 @@ export default class Dubbo<TService = Object>
         ctx.methodArgs = method.call(provider, ...args) || [];
 
         ctx.dubboInterface = dubboInterface;
-        ctx.version = version;
+        ctx.version = setting.version;
         ctx.timeout = timeout;
-        ctx.group = group || '';
+        ctx.group = setting.group || '';
 
         const self = this;
         const middlewares = [
@@ -239,7 +258,7 @@ export default class Dubbo<TService = Object>
           this._readyResolve();
         });
 
-      traceInfo(`dubbo:bootstrap version => ${version}`);
+      traceInfo(`dubbo:bootstrap version => ${packageVersion}`);
     });
   }
 

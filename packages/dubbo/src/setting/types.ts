@@ -15,13 +15,17 @@
  * limitations under the License.
  */
 
-import java from 'js-to-java';
-import Context from './context';
-import DirectlyDubbo from './directly-dubbo';
-import Dubbo from './dubbo';
-import {go} from './go';
-import setting from './setting';
-import {TDubboCallResult} from './types';
-import RpcError from "./RpcError";
+export interface IDubboSetting {
+  group?: string;
+  version?: string;
+  timeout?: number;
+}
 
-export {Dubbo, DirectlyDubbo, java, TDubboCallResult, Context, go, setting, RpcError};
+export type TPredictFunction = (
+  fullInterfaceName: string,
+) => IDubboSetting | null;
+
+export interface IRule {
+  condition: string | Array<string> | RegExp | TPredictFunction;
+  dubboSetting: IDubboSetting;
+}

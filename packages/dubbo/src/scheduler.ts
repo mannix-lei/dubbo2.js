@@ -15,21 +15,20 @@
  * limitations under the License.
  */
 
-import debug from "debug";
-import DubboAgent from "./dubbo-agent";
-import { ScheduleError, SocketError, ZookeeperTimeoutError } from "./err";
-import Queue from "./queue";
-import { IZkClientProps } from "./types";
-import { traceErr, traceInfo } from "./util";
-import { ZkRegistry } from "./zookeeper";
+import debug from 'debug';
+import DubboAgent from './dubbo-agent';
+import {ScheduleError, SocketError, ZookeeperTimeoutError} from './err';
+import Queue from './queue';
+import {IDubboResponse, IZkClientProps} from './types';
+import {traceErr, traceInfo} from './util';
+import {ZkRegistry} from './zookeeper';
 
-const log = debug("dubbo:scheduler");
-
+const log = debug('dubbo:scheduler');
 const enum STATUS {
-  PADDING = "padding",
-  READY = "ready",
-  FAILED = "failded",
-  NO_AGENT = "no_agent",
+  PADDING = 'padding',
+  READY = 'ready',
+  FAILED = 'failded',
+  NO_AGENT = 'no_agent',
 }
 
 /**
@@ -40,12 +39,35 @@ const enum STATUS {
  * 4. 接受zookeeper的变化，更新Server-agent
  */
 export default class Scheduler {
-  private _ignoreIpReg: Array<RegExp>;
+  constructor(props: IZkClientProps, queue: Queue) {
+    log(`new:|> %O`, props);
+    this._status = STATUS.PADDING;
+
+    this._queue = queue;
+    this._queue.subscribe(this._handleQueueRequest);
+
+    this._dubboAgent = new DubboAgent();
+
+    //init ZkClient and subscribe
+    this._zkClient = ZkRegistry.from(props).subscribe({
+      onData: this._handleZkClientOnData,
+      onError: this._handleZkClientError
+    });
+  }
 
   private _status: STATUS;
   private _queue: Queue;
   private _zkClient: ZkRegistry;
   private _dubboAgent: DubboAgent;
+
+  /**
+   * static factory method
+   * @param props
+   */
+  static from(props: IZkClientProps, queue: Queue) {
+    return new Scheduler(props, queue);
+  }
+
   /**
    * handle request in queue
    * @param requestId
@@ -60,47 +82,35 @@ export default class Scheduler {
         this._handleDubboInvoke(requestId);
         break;
       case STATUS.PADDING:
-        log("current scheduler was padding");
+        log('current scheduler was padding');
         break;
       case STATUS.NO_AGENT:
         this._handleFailed(
           requestId,
-          new ScheduleError("Zookeeper Can not be find any agents")
+          new ScheduleError('Zookeeper Can not be find any agents'),
         );
         break;
       case STATUS.FAILED:
         this._handleFailed(
           requestId,
-          new ScheduleError("ZooKeeper Could not be connected")
+          new ScheduleError('ZooKeeper Could not be connected'),
         );
         break;
     }
   };
 
   /**
-   * static factory method
-   * @param props
-   */
-  static from(props: IZkClientProps, queue: Queue) {
-    return new Scheduler(props, queue);
-  }
-  /**
    * 处理zookeeper的数据
    */
   private _handleZkClientOnData = (agentSet: Set<string>) => {
     //获取负载列表
     log(`get agent address:=> %O`, agentSet);
-    agentSet.forEach((addr, _sameAddr, addrSet) => {
-      if (this._ignoreIpReg && this._ignoreIpReg.some(reg=>reg.test(addr))) {
-        log(`ignore agentAddress => ${addr}`);
-        addrSet.delete(addr);
-      }
-    });
+
     //如果负载为空，也就是没有任何provider提供服务
     if (agentSet.size === 0) {
       this._status = STATUS.NO_AGENT;
       //将队列中的所有dubbo调用全调用失败
-      const err = new ScheduleError("Can not be find any agents");
+      const err = new ScheduleError('Can not be find any agents');
       this._queue.allFailed(err);
       traceErr(err);
       return;
@@ -110,28 +120,63 @@ export default class Scheduler {
     this._dubboAgent.from(agentSet).subscribe({
       onConnect: this._handleOnConnect,
       onData: this._handleOnData,
-      onClose: this._handleOnClose
+      onClose: this._handleOnClose,
     });
-  };
-  /**
-   * 处理schedule的failed状态
-   */
-  private _handleFailed = (requestId: number, err: Error) => {
-    log("#requestId: %d scheduler was failed, err: %s", requestId, err);
-    this._queue.failed(requestId, err);
   };
 
   /**
    * 处理zookeeper的错误
    */
-  private _handleZkClientError = err => {
+  private _handleZkClientError = (err: Error) => {
     log(err);
     //说明zookeeper连接不上
     if (err instanceof ZookeeperTimeoutError) {
       this._status = STATUS.FAILED;
     }
   };
-  private _handleOnConnect = ({ pid, host, port }) => {
+
+  /**
+   * 处理schedule的failed状态
+   */
+  private _handleFailed = (requestId: number, err: Error) => {
+    log('#requestId: %d scheduler was failed, err: %s', requestId, err);
+    this._queue.failed(requestId, err);
+  };
+
+  /**
+   * 发起dubbo调用
+   * @param ctx
+   * @param agentHostList
+   */
+  private _handleDubboInvoke(requestId: number) {
+    //get request context
+    const ctx = this._queue.requestQueue.get(requestId);
+    //get socket agent list
+    const agentAddrList = this._zkClient.getAgentAddrList(ctx);
+    log('agentAddrSet-> %O', agentAddrList);
+    const worker = this._dubboAgent.getAvailableSocketWorker(agentAddrList);
+
+    //if could not find any available socket agent worker
+    if (!worker) {
+      const {requestId, dubboInterface, version, group} = ctx;
+      const msg = `requestId#${requestId}:Could not find any agent worker with ${dubboInterface}#${version}#${group} agentList: ${agentAddrList.join(
+        ',',
+      )}`;
+      const err = new ScheduleError(msg);
+      this._handleFailed(requestId, err);
+      log(err);
+      traceErr(err);
+      return;
+    }
+
+    ctx.invokeHost = worker.host;
+    ctx.invokePort = worker.port;
+
+    const providerProps = this._zkClient.getDubboServiceProp(ctx);
+    this._queue.consume(ctx.requestId, worker, providerProps);
+  }
+
+  private _handleOnConnect = ({pid, host, port}) => {
     log(`scheduler receive SocketWorker connect pid#${pid} ${host}:${port}`);
     const agentHost = `${host}:${port}`;
     this._status = STATUS.READY;
@@ -142,7 +187,7 @@ export default class Scheduler {
     for (let ctx of this._queue.requestQueue.values()) {
       if (ctx.isNotScheduled) {
         const agentHostList = this._zkClient.getAgentAddrList(ctx);
-        log("agentHostList-> %O", agentHostList);
+        log('agentHostList-> %O', agentHostList);
         //当前的socket是否可以处理当前的请求
         if (agentHostList.indexOf(agentHost) != -1) {
           this._handleDubboInvoke(ctx.requestId);
@@ -150,16 +195,23 @@ export default class Scheduler {
       }
     }
   };
+
   /**
    * 当收到数据的时候
    */
-  private _handleOnData = ({ requestId, res, err }) => {
+  private _handleOnData = ({
+    requestId,
+    res,
+    err,
+    attachments,
+  }: IDubboResponse<any>) => {
     if (err) {
-      this._queue.failed(requestId, err);
+      this._queue.failed(requestId, err, attachments);
     } else {
-      this._queue.resolve(requestId, res);
+      this._queue.resolve(requestId, res, attachments);
     }
   };
+
   /**
    * 处理某一个SocketWorker被关闭的状态
    */
@@ -177,53 +229,4 @@ export default class Scheduler {
       }
     }
   };
-
-  constructor(props: IZkClientProps, queue: Queue) {
-    log(`new:|> %O`, props);
-    this._status = STATUS.PADDING;
-    this._ignoreIpReg = props.ignoreIpReg || [];
-    this._queue = queue;
-    this._queue.subscribe(this._handleQueueRequest);
-
-    this._dubboAgent = new DubboAgent();
-
-    //init ZkClient and subscribe
-    this._zkClient = ZkRegistry.from(props).subscribe({
-      onData: this._handleZkClientOnData,
-      onError: this._handleZkClientError
-    });
-  }
-
-  /**
-   * 发起dubbo调用
-   * @param ctx
-   * @param agentHostList
-   */
-  private _handleDubboInvoke(requestId: number) {
-    //get request context
-    const ctx = this._queue.requestQueue.get(requestId);
-    //get socket agent list
-    const agentAddrList = this._zkClient.getAgentAddrList(ctx);
-    log("agentAddrSet-> %O", agentAddrList);
-    const worker = this._dubboAgent.getAvailableSocketWorker(agentAddrList);
-
-    //if could not find any available socket agent worker
-    if (!worker) {
-      const { requestId, dubboInterface, version, group } = ctx;
-      const msg = `requestId#${requestId}:Could not find any agent worker with ${dubboInterface}#${version}#${group} agentList: ${agentAddrList.join(
-        ","
-      )}`;
-      const err = new ScheduleError(msg);
-      this._handleFailed(requestId, err);
-      log(err);
-      traceErr(err);
-      return;
-    }
-
-    ctx.invokeHost = worker.host;
-    ctx.invokePort = worker.port;
-
-    const providerProps = this._zkClient.getDubboServiceProp(ctx);
-    this._queue.consume(ctx.requestId, worker, providerProps);
-  }
 }

@@ -27,7 +27,12 @@ import {
   ZookeeperTimeoutError,
 } from './err';
 import {go} from './go';
-import {IObservable, IRegistrySubscriber, IZkClientProps} from './types';
+import {
+  ICreateConsumerParam,
+  IObservable,
+  IRegistrySubscriber,
+  IZkClientProps,
+} from './types';
 import {delay, eqSet, isDevEnv, msg, noop, traceErr, traceInfo} from './util';
 
 const log = debug('dubbo:zookeeper');
@@ -146,7 +151,7 @@ export class ZkRegistry implements IObservable<IRegistrySubscriber> {
 
       for (let serviceUrl of dubboServiceUrls) {
         const url = DubboUrl.from(serviceUrl);
-        const {host, port, dubboVersion, version} = url;
+        const {host, port, dubboVersion} = url;
         this._dubboServiceUrlMap.get(inf).push(url);
 
         //写入consume信息
@@ -157,7 +162,6 @@ export class ZkRegistry implements IObservable<IRegistrySubscriber> {
           zkRoot,
           dubboInterface: inf,
           dubboVersion: dubboVersion,
-          version: version,
         }).then(() => log('create Consumer finish'));
       }
     }
@@ -317,7 +321,7 @@ export class ZkRegistry implements IObservable<IRegistrySubscriber> {
       const urls = [];
       for (let serviceUrl of dubboServiceUrls) {
         const url = DubboUrl.from(serviceUrl);
-        const {host, port, dubboVersion, version} = url;
+        const {host, port, dubboVersion} = url;
         agentAddrList.push(`${host}:${port}`);
         urls.push(url);
 
@@ -328,7 +332,6 @@ export class ZkRegistry implements IObservable<IRegistrySubscriber> {
           zkRoot:this._props.zkRoot,
           dubboInterface: dubboInterface,
           dubboVersion: dubboVersion,
-          version: version,
         }).then(() => log('create consumer finish'));
       }
       this._dubboServiceUrlMap.set(dubboInterface, urls);
@@ -382,16 +385,19 @@ export class ZkRegistry implements IObservable<IRegistrySubscriber> {
   /**
    * com.alibaba.dubbo.registry.zookeeper.ZookeeperRegistry
    */
-  private async _createConsumer(params: {
-    host: string;
-    port: number;
-    name: string;
-    zkRoot:string;
-    dubboInterface: string;
-    dubboVersion: string;
-    version: string;
-  }) {
-    let {host, port, name, dubboInterface, dubboVersion, version,zkRoot} = params;
+  private async _createConsumer(params: ICreateConsumerParam) {
+    let {host, port, name, dubboInterface, dubboVersion} = params;
+
+    const dubboSetting = this._props.dubboSetting.getDubboSetting(
+      dubboInterface,
+    );
+
+    if (!dubboSetting) {
+      throw new Error(
+        `Could not find group, version for ${dubboInterface} please check your dubbo setting`,
+      );
+    }
+
     const queryParams = {
       host,
       port,
@@ -401,18 +407,20 @@ export class ZkRegistry implements IObservable<IRegistrySubscriber> {
       dubbo: dubboVersion,
       method: '',
       revision: '',
-      version: version,
+      version: dubboSetting.version,
+      group: dubboSetting.group,
       side: 'consumer',
       check: 'false',
     };
 
-    const consumerRoot = `/${zkRoot}/${dubboInterface}/consumers`;
+    const consumerRoot = `/${params.zkRoot}/${dubboInterface}/consumers`;
     const err = await this._createRootConsumer(consumerRoot);
     if (err) {
-      log('create root consumer %o', err);
+      log('create root consumer: error %o', err);
       return;
     }
 
+    //create comsumer
     const consumerUrl =
       consumerRoot +
       '/' +
@@ -421,10 +429,14 @@ export class ZkRegistry implements IObservable<IRegistrySubscriber> {
           queryParams,
         )}`,
       );
-
     const exist = await go(this._exists(consumerUrl));
-    if (exist.err || exist.res) {
-      log(`check consumer url: ${consumerUrl}失败或者consumer已经存在`);
+    if (exist.err) {
+      log(`check consumer url: ${consumerUrl} failed`);
+      return;
+    }
+
+    if (exist.res) {
+      log(`check consumer url: ${consumerUrl} was existed.`);
       return;
     }
 
@@ -446,22 +458,24 @@ export class ZkRegistry implements IObservable<IRegistrySubscriber> {
   }
 
   private async _createRootConsumer(consumer: string) {
-    const {res, err} = await go(this._exists(consumer));
+    let {res, err} = await go(this._exists(consumer));
+    //check error
     if (err) {
-      log(`consumer exisit ${consumer} %o`, err);
       return err;
     }
 
-    //如果没有
-    if (!res) {
-      const {err} = await go(
-        this._create(consumer, zookeeper.CreateMode.PERSISTENT),
-      );
-      if (err) {
-        log(`create consumer#${consumer} successfully`);
-        return err;
-      }
+    // current consumer root path was existed.
+    if (res) {
+      return null;
     }
+
+    //create current consumer path
+    ({err} = await go(this._create(consumer, zookeeper.CreateMode.PERSISTENT)));
+    if (err) {
+      return err;
+    }
+
+    log('create root comsumer %s successfull', consumer);
   }
 
   private _create = (path: string, mode: number): Promise<string> => {
