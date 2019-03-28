@@ -103,7 +103,7 @@ export async function toBeanClass(
     console.error(`为${intepretHandle.classPath}添加Interface出错,${err}`);
   }
 
-  methods.push({name: '__fields2java', bodyText});
+  methods.push({name: '__fields2java', returnType: 'object', bodyText});
   let ctorBody = ctorParams
     .map(({name}) => `this.${name}=params.${name};`)
     .join('\n');
